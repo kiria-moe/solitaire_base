@@ -177,19 +177,11 @@ impl Board {
             }
         }
 
-        fn can_stack_onto(source: &Card, dest: &Card) -> bool {
-            let Card::Number(c1, n1) = source else { return false; };
-            let Card::Number(c2, n2) = dest else { return false; };
-            if c1 == c2 {
-                return false;
-            }
-            n1 + 1 == *n2
-        }
         //spare to tray
         for (source_index, slot) in self.spare.iter().enumerate().filter(|(_, x)| matches!(x, BoardSpare::Card(_))) {
             for (target_index, target_stack) in self.tray.iter().enumerate() {
                 let BoardSpare::Card(source_card) = slot else { unreachable!() };
-                if target_stack.is_empty() || can_stack_onto(source_card, target_stack.last().unwrap()) {
+                if target_stack.is_empty() || source_card.can_stack_onto(target_stack.last().unwrap()) {
                     let mut new_board = self.clone();
                     new_board.tray[target_index].push(*source_card);
                     new_board.spare[source_index] = BoardSpare::Empty;
@@ -203,11 +195,11 @@ impl Board {
             for (target_index, target_stack) in self.tray.iter().enumerate().filter(|(i, _)| *i != source_index) {
                 'move_stack: for num in 1..=source_stack.len() {
                     for index in 0..(num-1) {
-                        if !can_stack_onto(&source_stack[source_stack.len()-1-index], &source_stack[source_stack.len()-1-index-1]) {
+                        if !source_stack[source_stack.len()-1-index].can_stack_onto(&source_stack[source_stack.len()-1-index-1]) {
                             break 'move_stack;
                         }
                     }
-                    if target_stack.is_empty() || can_stack_onto(&source_stack[source_stack.len() - num], target_stack.last().unwrap()) {
+                    if target_stack.is_empty() || source_stack[source_stack.len() - num].can_stack_onto(&target_stack.last().unwrap()) {
                         let mut new_board = self.clone();
                         let mut cards_to_be_moved: Vec<Card> = (0..num).map(|_| new_board.tray[source_index].pop().unwrap()).collect::<Vec<Card>>();
                         cards_to_be_moved.reverse();

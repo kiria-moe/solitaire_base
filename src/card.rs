@@ -38,3 +38,14 @@ impl Display for Card {
         }
     }
 }
+
+impl Card {
+    pub fn can_stack_onto(&self, dest: &Card) -> bool {
+        let Card::Number(c1, n1) = self else { return false; };
+        let Card::Number(c2, n2) = dest else { return false; };
+        if c1 == c2 {
+            return false;
+        }
+        n1 + 1 == *n2
+    }
+}
