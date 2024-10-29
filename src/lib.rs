@@ -386,24 +386,20 @@ impl Board {
                 .map_or(true, |c| card.can_stack_onto(&c)),
         }
     }
-    pub fn find_dragon_collect_target(&self, color: DragonCard) -> Option<Location> {
+    pub fn dragon_collectable(&self, color: DragonCard) -> Option<u8> {
         self.spare.iter().position(|x| match x {
             BoardSpare::Empty => true,
             BoardSpare::Card(Card::Dragon(d)) if *d == color => true,
             _ => false,
-        }).map(|x| Location::Spare(x as u8))
-    }
-    pub fn dragon_collectable(&self, color: DragonCard) -> bool {
-        let target_location = self.find_dragon_collect_target(color);
-        if target_location.is_none() {
-            return false;
-        }
-        let spare_count = (0..3).filter(|x|
-            self.get(Location::Spare(*x))
-                .map_or(false, |c| matches!(c, Card::Dragon(d) if d == color))).count();
-        let tray_count = (0..8).filter(|x|
-            self.last(Slot::Tray(*x))
-                .map_or(false, |c| matches!(c, Card::Dragon(d) if d == color))).count();
-        spare_count + tray_count == 4
+        }).map(|x| x as u8)
+            .and_then(|i| {
+                let spare_count = (0..3).filter(|x|
+                    self.get(Location::Spare(*x))
+                        .map_or(false, |c| matches!(c, Card::Dragon(d) if d == color))).count();
+                let tray_count = (0..8).filter(|x|
+                    self.last(Slot::Tray(*x))
+                        .map_or(false, |c| matches!(c, Card::Dragon(d) if d == color))).count();
+                (spare_count + tray_count == 4).then_some(i)
+            })
     }
 }
