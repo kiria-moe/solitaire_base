@@ -10,7 +10,7 @@ use move_action::MoveAction;
 use std::fmt::Display;
 use std::mem;
 use serde_json::json;
-use crate::index::{Location, Slot};
+use crate::index::{ALL_SLOTS, Location, Slot};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Board {
@@ -291,27 +291,26 @@ impl Board {
             }
         }
 
-        (0..3).map(|i|Slot::Spare(i))
-            .chain((0..8).map(|i|Slot::Tray(i)))
+        ALL_SLOTS.iter()
             .for_each(|slot| loop {
-                match self.last(slot) {
+                match self.last(*slot) {
                     Some(Card::Flower) => {
                         self.flower = true;
-                        self.pop(slot); continue;
+                        self.pop(*slot); continue;
                     }
                     Some(Card::Number(c, 1)) => {
                         *self.out.get_board_out(c) = 1;
-                        self.pop(slot); continue;
+                        self.pop(*slot); continue;
                     }
                     Some(Card::Number(c, 2)) if *self.out.get_board_out(c) == 1 => {
                         *self.out.get_board_out(c) = 2;
-                        self.pop(slot); continue;
+                        self.pop(*slot); continue;
                     }
                     Some(Card::Number(c, n)) if self.out.bamboo + 1 >= n
                         && self.out.characters + 1 >= n
                         && self.out.coin + 1 >= n => {
                         *self.out.get_board_out(c) = n;
-                        self.pop(slot); continue;
+                        self.pop(*slot); continue;
                     }
                     _ => break,
                 }
