@@ -291,72 +291,31 @@ impl Board {
             }
         }
 
-        let mut moved = true;
-        'mov: while moved {
-            moved = false;
-            for slot in &mut self.spare {
-                if let BoardSpare::Card(c) = slot {
-                    match c {
-                        Card::Flower => {
-                            self.flower = true;
-                            *slot = BoardSpare::Empty;
-                            moved = true; continue 'mov;
-                        }
-                        Card::Number(c, 1) => {
-                            *self.out.get_board_out(*c) = 1;
-                            *slot = BoardSpare::Empty;
-                            moved = true; continue 'mov;
-                        }
-                        Card::Number(c, 2) => {
-                            if *self.out.get_board_out(*c) == 1 {
-                                *self.out.get_board_out(*c) = 2;
-                                *slot = BoardSpare::Empty;
-                                moved = true; continue 'mov;
-                            }
-                        }
-                        Card::Number(c, n) => {
-                            if self.out.bamboo + 1 >= *n && self.out.characters + 1 >= *n && self.out.coin + 1 >= *n {
-                                *self.out.get_board_out(*c) = *n;
-                                *slot = BoardSpare::Empty;
-                                moved = true; continue 'mov;
-                            }
-                        }
-                        _ => {}
+        (0..3).map(|i|Slot::Spare(i))
+            .chain((0..8).map(|i|Slot::Tray(i)))
+            .for_each(|slot| loop {
+                match self.last(slot) {
+                    Some(Card::Flower) => {
+                        self.flower = true;
+                        self.pop(slot); continue;
                     }
-                }
-            }
-            for slot in &mut self.tray {
-                if let Some(c) = slot.last() {
-                    match c {
-                        Card::Flower => {
-                            self.flower = true;
-                            slot.pop();
-                            moved = true; continue 'mov;
-                        }
-                        Card::Number(c, 1) => {
-                            *self.out.get_board_out(*c) = 1;
-                            slot.pop();
-                            moved = true; continue 'mov;
-                        }
-                        Card::Number(c, 2) => {
-                            if *self.out.get_board_out(*c) == 1 {
-                                *self.out.get_board_out(*c) = 2;
-                                slot.pop();
-                                moved = true; continue 'mov;
-                            }
-                        }
-                        Card::Number(c, n) => {
-                            if self.out.bamboo + 1 >= *n && self.out.characters + 1 >= *n && self.out.coin + 1 >= *n {
-                                *self.out.get_board_out(*c) = *n;
-                                slot.pop();
-                                moved = true; continue 'mov;
-                            }
-                        }
-                        _ => {}
+                    Some(Card::Number(c, 1)) => {
+                        *self.out.get_board_out(c) = 1;
+                        self.pop(slot); continue;
                     }
+                    Some(Card::Number(c, 2)) if *self.out.get_board_out(c) == 1 => {
+                        *self.out.get_board_out(c) = 2;
+                        self.pop(slot); continue;
+                    }
+                    Some(Card::Number(c, n)) if self.out.bamboo + 1 >= n
+                        && self.out.characters + 1 >= n
+                        && self.out.coin + 1 >= n => {
+                        *self.out.get_board_out(c) = n;
+                        self.pop(slot); continue;
+                    }
+                    _ => break,
                 }
-            }
-        }
+            });
     }
     pub fn len(&self, slot: Slot) -> usize {
         if let Slot::Tray(index) = slot {
