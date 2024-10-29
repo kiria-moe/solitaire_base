@@ -10,6 +10,7 @@ use move_action::MoveAction;
 use std::fmt::Display;
 use std::mem;
 use serde_json::json;
+use crate::index::{Location, Slot};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Board {
@@ -115,6 +116,20 @@ impl From<&Board> for serde_json::Value {
                 Card::Number(NumberCard::Coin, n) => json!({"type": "number", "color": "coins", "value": n}),
             }).collect::<Vec<serde_json::Value>>()).map(|x| x.into()).collect::<Vec<serde_json::Value>>(),
         })
+    }
+}
+
+impl std::ops::Index<Location> for Board {
+    type Output = Card;
+    fn index(&self, location: Location) -> &Self::Output {
+        use Location as L;
+        match location {
+            L::Spare(index) => match self.spare[index as usize] {
+                BoardSpare::Card(ref c) => c,
+                _ => panic!("Slot collected or empty"),
+            },
+            L::Tray(x, y) => &self.tray[x as usize][y as usize],
+        }
     }
 }
 
@@ -235,7 +250,7 @@ impl Board {
                 }
             }
         }
-        
+
         //tray to tray
         for (source_index, source_stack) in self.tray.iter().enumerate().filter(|(_, x)| !x.is_empty()) {
             for (target_index, _) in self.tray.iter().enumerate().filter(|(i, _)| *i != source_index) {
@@ -249,11 +264,11 @@ impl Board {
                 }
             }
         }
-        
+
         if !ret.is_empty() {
             return ret;
         }
-        
+
         //tray to spare
         if let Some((target_index, _)) = self.spare.iter().enumerate().find(|(_, x)| matches!(x, BoardSpare::Empty)) {
             for (source_index, _) in self.tray.iter().enumerate().filter(|(_, x)| !x.is_empty()) {
@@ -342,5 +357,94 @@ impl Board {
                 }
             }
         }
+    }
+    pub fn len(&self, slot: Slot) -> usize {
+        if let Slot::Tray(index) = slot {
+            self.tray[index as usize].len()
+        } else {
+            panic!("Only tray has length");
+        }
+    }
+    pub fn get(&self, location: Location) -> Option<Card> {
+        match location {
+            Location::Spare(index) => match self.spare[index as usize] {
+                BoardSpare::Card(c) => Some(c),
+                _ => None,
+            },
+            Location::Tray(x, y) => self.tray[x as usize].get(y as usize).copied(),
+        }
+    }
+    pub fn last(&self, slot: Slot) -> Option<Card> {
+        match slot {
+            Slot::Spare(index) => self.get(Location::Spare(index)),
+            Slot::Tray(index) => self.tray[index as usize].last().copied(),
+        }
+    }
+    pub fn remove(&mut self, location: Location) -> Card {
+        match location {
+            Location::Spare(index) => {
+                if let BoardSpare::Card(c) = self.spare[index as usize] {
+                    c
+                } else {
+                    panic!("Slot collected or empty");
+                }
+            },
+            Location::Tray(x, y) => {
+                self.tray[x as usize].remove(y as usize)
+            },
+        }
+    }
+    pub fn pop(&mut self, slot: Slot) -> Option<Card> {
+        match slot {
+            Slot::Spare(index) => match self.spare[index as usize] {
+                BoardSpare::Card(c) => {
+                    self.spare[index as usize] = BoardSpare::Empty;
+                    Some(c)
+                },
+                _ => None,
+            },
+            Slot::Tray(index) => self.tray[index as usize].pop(),
+        }
+    }
+    pub fn push(&mut self, slot: Slot, card: Card) {
+        match slot {
+            Slot::Spare(index) => {
+                if let BoardSpare::Empty = self.spare[index as usize] {
+                    self.spare[index as usize] = BoardSpare::Card(card);
+                } else {
+                    panic!("Slot is not empty");
+                }
+            },
+            Slot::Tray(index) => {
+                self.tray[index as usize].push(card);
+            },
+        }
+    }
+    pub fn appendable(&self, slot: Slot, card: Card) -> bool {
+        match slot {
+            Slot::Spare(index) => matches!(self.spare[index as usize], BoardSpare::Empty),
+            Slot::Tray(index) => self.last(Slot::Tray(index))
+                .map_or(true, |c| card.can_stack_onto(&c)),
+        }
+    }
+    pub fn find_dragon_collect_target(&self, color: DragonCard) -> Option<Location> {
+        self.spare.iter().position(|x| match x {
+            BoardSpare::Empty => true,
+            BoardSpare::Card(Card::Dragon(d)) if *d == color => true,
+            _ => false,
+        }).map(|x| Location::Spare(x as u8))
+    }
+    pub fn dragon_collectable(&self, color: DragonCard) -> bool {
+        let target_location = self.find_dragon_collect_target(color);
+        if target_location.is_none() {
+            return false;
+        }
+        let spare_count = (0..3).filter(|x|
+            self.get(Location::Spare(*x))
+                .map_or(false, |c| matches!(c, Card::Dragon(d) if d == color))).count();
+        let tray_count = (0..8).filter(|x|
+            self.last(Slot::Tray(*x))
+                .map_or(false, |c| matches!(c, Card::Dragon(d) if d == color))).count();
+        spare_count + tray_count == 4
     }
 }
