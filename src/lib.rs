@@ -1,6 +1,7 @@
 pub mod card;
 pub mod board_slot;
 pub mod move_action;
+pub mod index;
 
 use card::{Card, DragonCard, NumberCard};
 use board_slot::{BoardOut, BoardSpare};
