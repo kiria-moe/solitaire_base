@@ -157,80 +157,33 @@ impl Board {
         ret.simplify();
         ret
     }
-    pub fn move_cards(&mut self, action: MoveAction) -> Result<(), ()>{
+    pub fn move_cards(&mut self, action: MoveAction) -> bool {
         use MoveAction as MA;
         match action {
             MA::CollectDragon(dragon) => {
-                let target_index = self.spare.iter().position(|x| match x {
-                    BoardSpare::Empty => true,
-                    BoardSpare::Card(Card::Dragon(d)) if *d == dragon => true,
-                    _ => false,
-                });
-                if let Some(target_index) = target_index {
-                    if self.spare.iter().filter(|x| matches!(x, BoardSpare::Card(Card::Dragon(d)) if *d == dragon)).count()
-                        + self.tray.iter().filter_map(|x| x.last().and_then(|c| match c {
-                        Card::Dragon(d) if *d == dragon => Some(()),
-                        _ => None,
-                    })).count() == 4 {
-                        self.spare[target_index] = BoardSpare::Collected;
-                        for slot in &mut self.spare {
-                            if let BoardSpare::Card(Card::Dragon(d)) = slot {
-                                if *d == dragon {
-                                    *slot = BoardSpare::Empty;
-                                }
+                if let Some(target_index) = self.dragon_collectable(dragon) {
+                    self.spare[target_index as usize] = BoardSpare::Collected;
+                    ALL_SLOTS.iter().for_each(|slot| {
+                        if let Some(Card::Dragon(d)) = self.last(*slot) {
+                            if d == dragon {
+                                self.pop(*slot);
                             }
                         }
-                        for slot in &mut self.tray {
-                            if let Some(Card::Dragon(d)) = slot.last() {
-                                if *d == dragon {
-                                    slot.pop();
-                                }
-                            }
-                        }
-                        self.simplify();
-                        return Ok(());
-                    }
-                }
-            }
-            MA::MoveSpareToTray(src, dst) => {
-                if let BoardSpare::Card(c) = self.spare[src as usize] {
-                    if self.tray[dst as usize].is_empty() || c.can_stack_onto(self.tray[dst as usize].last().unwrap()) {
-                        self.tray[dst as usize].push(c);
-                        self.spare[src as usize] = BoardSpare::Empty;
-                        self.simplify();
-                        return Ok(());
-                    }
-                }
-            }
-            MA::MoveTrayToTray(src, dst, cnt) => {
-                for index in 0..(cnt as usize-1) {
-                    if !self.tray[src as usize][self.tray[src as usize].len()-1-index]
-                        .can_stack_onto(&self.tray[src as usize][self.tray[src as usize].len()-1-index-1]) {
-                        return Err(());
-                    }
-                }
-                if self.tray[dst as usize].is_empty() || self.tray[src as usize][self.tray[src as usize].len() - cnt as usize].can_stack_onto(&self.tray[dst as usize].last().unwrap()) {
-                    let mut cards_to_be_moved: Vec<Card> = (0..cnt).map(|_| self.tray[src as usize].pop().unwrap()).collect::<Vec<Card>>();
-                    cards_to_be_moved.reverse();
-                    self.tray[dst as usize].append(&mut cards_to_be_moved);
+                    });
                     self.simplify();
-                    return Ok(());
+                    true
+                } else {
+                    false
                 }
             }
-            MA::MoveTrayToSpare(src, dst) => {
-                if self.tray[src as usize].last().is_some() {
-                    if let BoardSpare::Empty = self.spare[dst as usize] {
-                        let c = self.tray[src as usize].pop().unwrap();
-                        self.spare[dst as usize] = BoardSpare::Card(c);
-                        self.simplify();
-                        return Ok(());
-                    }
-                }
+            MA::Move(source, cnt, target) => {
+                (0..cnt).map(|_| self.pop(source).unwrap()).collect::<Vec<Card>>()
+                    .iter().rev().for_each(|c| self.push(target, *c));
+                true
             }
         }
-        Err(())
     }
-    pub fn neighbors(&self) -> Vec<(MoveAction, Board)> {
+/*    pub fn neighbors(&self) -> Vec<(MoveAction, Board)> {
         let mut ret = vec![];
         let mut new_board = self.clone();
         //collect dragon
@@ -279,7 +232,7 @@ impl Board {
             }
         }
         ret
-    }
+    }*/
     pub fn simplify(&mut self) {
         impl BoardOut {
             fn get_board_out(&mut self, c: NumberCard) -> &mut u8 {
