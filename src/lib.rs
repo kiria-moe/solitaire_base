@@ -244,30 +244,37 @@ impl Board {
             }
         }
 
-        ALL_SLOTS.iter()
-            .for_each(|slot| loop {
+        let mut moved = true;
+        while moved {
+            moved = false;
+            for slot in ALL_SLOTS.iter() {
                 match self.last(*slot) {
                     Some(Card::Flower) => {
                         self.flower = true;
-                        self.pop(*slot); continue;
+                        self.pop(*slot);
+                        moved = true;
                     }
                     Some(Card::Number(c, 1)) => {
                         *self.out.get_board_out(c) = 1;
-                        self.pop(*slot); continue;
+                        self.pop(*slot);
+                        moved = true;
                     }
                     Some(Card::Number(c, 2)) if *self.out.get_board_out(c) == 1 => {
                         *self.out.get_board_out(c) = 2;
-                        self.pop(*slot); continue;
+                        self.pop(*slot);
+                        moved = true;
                     }
                     Some(Card::Number(c, n)) if self.out.bamboo + 1 >= n
                         && self.out.characters + 1 >= n
                         && self.out.coin + 1 >= n => {
                         *self.out.get_board_out(c) = n;
-                        self.pop(*slot); continue;
+                        self.pop(*slot);
+                        moved = true;
                     }
-                    _ => break,
+                    _ => {},
                 }
-            });
+            }
+        }
     }
     pub fn len(&self, slot: Slot) -> usize {
         if let Slot::Tray(index) = slot {
