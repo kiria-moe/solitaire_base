@@ -1,16 +1,16 @@
-pub mod card;
-pub mod board_slot;
-pub mod move_action;
-pub mod index;
+use std::fmt::Display;
 
-use card::{Card, DragonCard, NumberCard};
+use serde_json::json;
+
 use board_slot::{BoardOut, BoardSpare};
+use card::{Card, DragonCard, NumberCard};
+use index::{ALL_SLOTS, Location, Slot};
 use move_action::MoveAction;
 
-use std::fmt::Display;
-use std::mem;
-use serde_json::json;
-use crate::index::{ALL_SLOTS, Location, Slot};
+pub mod board_slot;
+pub mod card;
+pub mod index;
+pub mod move_action;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Board {
