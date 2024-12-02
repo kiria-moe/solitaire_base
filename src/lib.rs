@@ -277,10 +277,9 @@ impl Board {
         }
     }
     pub fn len(&self, slot: Slot) -> usize {
-        if let Slot::Tray(index) = slot {
-            self.tray[index as usize].len()
-        } else {
-            panic!("Only tray has length");
+        match slot {
+            Slot::Tray(index) => self.tray[index as usize].len(),
+            Slot::Spare(index) => if matches!(self.spare[index as usize], BoardSpare::Card(_)) { 1 } else { 0 },
         }
     }
     pub fn get(&self, location: Location) -> Option<Card> {
