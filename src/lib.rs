@@ -161,7 +161,7 @@ impl Board {
         use MoveAction as MA;
         match action {
             MA::CollectDragon(dragon) => {
-                if let Some(target_index) = self.dragon_collectable(dragon) {
+                if let Some(target_index) = self.dragon_collectable(&dragon) {
                     self.spare[target_index as usize] = BoardSpare::Collected;
                     ALL_SLOTS.iter().for_each(|slot| {
                         if let Some(Card::Dragon(d)) = self.get(*slot).last() {
@@ -286,8 +286,8 @@ impl Board {
     pub fn flower(&self) -> bool {
         self.flower
     }
-    pub fn out(&self) -> BoardOut {
-        self.out
+    pub fn out(&self) -> &BoardOut {
+        &self.out
     }
     pub fn get(&self, slot: Slot) -> Box<dyn Iterator<Item = &Card> + '_> {
         match slot {
@@ -340,26 +340,26 @@ impl Board {
             },
         }
     }
-    pub fn appendable(&self, slot: Slot, card: Card) -> bool {
+    pub fn appendable(&self, slot: Slot, card: &Card) -> bool {
         match slot {
             Slot::Spare(index) => matches!(self.spare[index as usize], BoardSpare::Empty),
             Slot::Tray(index) => self.get(Slot::Tray(index)).last()
-                .map_or(true, |c| card.can_stack_onto(&c)),
+                .map_or(true, |c| card.can_stack_onto(c)),
         }
     }
-    pub fn dragon_collectable(&self, color: DragonCard) -> Option<u8> {
+    pub fn dragon_collectable(&self, color: &DragonCard) -> Option<u8> {
         self.spare.iter().position(|x| match x {
             BoardSpare::Empty => true,
-            BoardSpare::Card(Card::Dragon(d)) if *d == color => true,
+            BoardSpare::Card(Card::Dragon(d)) if *d == *color => true,
             _ => false,
         }).map(|x| x as u8)
             .and_then(|i| {
                 let spare_count = (0..3).filter(|x|
                     self.get(Slot::Spare(*x)).next()
-                        .map_or(false, |c| matches!(c, Card::Dragon(d) if *d == color))).count();
+                        .map_or(false, |c| matches!(c, Card::Dragon(d) if *d == *color))).count();
                 let tray_count = (0..8).filter(|x|
                     self.get(Slot::Tray(*x)).last()
-                        .map_or(false, |c| matches!(c, Card::Dragon(d) if *d == color))).count();
+                        .map_or(false, |c| matches!(c, Card::Dragon(d) if *d == *color))).count();
                 (spare_count + tray_count == 4).then_some(i)
             })
     }
