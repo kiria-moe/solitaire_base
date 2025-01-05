@@ -164,8 +164,8 @@ impl Board {
                 if let Some(target_index) = self.dragon_collectable(dragon) {
                     self.spare[target_index as usize] = BoardSpare::Collected;
                     ALL_SLOTS.iter().for_each(|slot| {
-                        if let Some(Card::Dragon(d)) = self.last(*slot) {
-                            if d == dragon {
+                        if let Some(Card::Dragon(d)) = self.get(*slot).last() {
+                            if *d == dragon {
                                 self.pop(*slot);
                             }
                         }
@@ -235,7 +235,14 @@ impl Board {
     }*/
     pub fn simplify(&mut self) {
         impl BoardOut {
-            fn get_board_out(&mut self, c: NumberCard) -> &mut u8 {
+            fn get_board_out(&self, c: NumberCard) -> u8 {
+                match c {
+                    NumberCard::Bamboo => self.bamboo,
+                    NumberCard::Characters => self.characters,
+                    NumberCard::Coin => self.coin,
+                }
+            }
+            fn get_board_out_mut(&mut self, c: NumberCard) -> &mut u8 {
                 match c {
                     NumberCard::Bamboo => &mut self.bamboo,
                     NumberCard::Characters => &mut self.characters,
@@ -248,26 +255,26 @@ impl Board {
         while moved {
             moved = false;
             for slot in ALL_SLOTS.iter() {
-                match self.last(*slot) {
+                match self.get(*slot).last() {
                     Some(Card::Flower) => {
                         self.flower = true;
                         self.pop(*slot);
                         moved = true;
                     }
                     Some(Card::Number(c, 1)) => {
-                        *self.out.get_board_out(c) = 1;
+                        *self.out.get_board_out_mut(*c) = 1;
                         self.pop(*slot);
                         moved = true;
                     }
-                    Some(Card::Number(c, 2)) if *self.out.get_board_out(c) == 1 => {
-                        *self.out.get_board_out(c) = 2;
+                    Some(Card::Number(c, 2)) if self.out.get_board_out(*c) == 1 => {
+                        *self.out.get_board_out_mut(*c) = 2;
                         self.pop(*slot);
                         moved = true;
                     }
-                    Some(Card::Number(c, n)) if self.out.bamboo + 1 >= n
-                        && self.out.characters + 1 >= n
-                        && self.out.coin + 1 >= n => {
-                        *self.out.get_board_out(c) = n;
+                    Some(Card::Number(c, n)) if self.out.bamboo + 1 >= *n
+                        && self.out.characters + 1 >= *n
+                        && self.out.coin + 1 >= *n => {
+                        *self.out.get_board_out_mut(*c) = *n;
                         self.pop(*slot);
                         moved = true;
                     }
@@ -282,25 +289,14 @@ impl Board {
     pub fn out(&self) -> BoardOut {
         self.out
     }
-    pub fn len(&self, slot: Slot) -> usize {
+    pub fn get(&self, slot: Slot) -> Box<dyn Iterator<Item = &Card> + '_> {
         match slot {
-            Slot::Tray(index) => self.tray[index as usize].len(),
-            Slot::Spare(index) => if matches!(self.spare[index as usize], BoardSpare::Card(_)) { 1 } else { 0 },
-        }
-    }
-    pub fn get(&self, location: Location) -> Option<Card> {
-        match location {
-            Location::Spare(index) => match self.spare[index as usize] {
-                BoardSpare::Card(c) => Some(c),
-                _ => None,
+            Slot::Spare(index) => if let Some(BoardSpare::Card(c)) = self.spare.get(index as usize) {
+                Box::new(std::iter::once(c))
+            } else {
+                Box::new(std::iter::empty())
             },
-            Location::Tray(x, y) => self.tray[x as usize].get(y as usize).copied(),
-        }
-    }
-    pub fn last(&self, slot: Slot) -> Option<Card> {
-        match slot {
-            Slot::Spare(index) => self.get(Location::Spare(index)),
-            Slot::Tray(index) => self.tray[index as usize].last().copied(),
+            Slot::Tray(index) => Box::new(self.tray[index as usize].iter()),
         }
     }
     pub fn remove(&mut self, location: Location) -> Card {
@@ -346,7 +342,7 @@ impl Board {
     pub fn appendable(&self, slot: Slot, card: Card) -> bool {
         match slot {
             Slot::Spare(index) => matches!(self.spare[index as usize], BoardSpare::Empty),
-            Slot::Tray(index) => self.last(Slot::Tray(index))
+            Slot::Tray(index) => self.get(Slot::Tray(index)).last()
                 .map_or(true, |c| card.can_stack_onto(&c)),
         }
     }
@@ -358,11 +354,11 @@ impl Board {
         }).map(|x| x as u8)
             .and_then(|i| {
                 let spare_count = (0..3).filter(|x|
-                    self.get(Location::Spare(*x))
-                        .map_or(false, |c| matches!(c, Card::Dragon(d) if d == color))).count();
+                    self.get(Slot::Spare(*x)).next()
+                        .map_or(false, |c| matches!(c, Card::Dragon(d) if *d == color))).count();
                 let tray_count = (0..8).filter(|x|
-                    self.last(Slot::Tray(*x))
-                        .map_or(false, |c| matches!(c, Card::Dragon(d) if d == color))).count();
+                    self.get(Slot::Tray(*x)).last()
+                        .map_or(false, |c| matches!(c, Card::Dragon(d) if *d == color))).count();
                 (spare_count + tray_count == 4).then_some(i)
             })
     }
