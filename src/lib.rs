@@ -14,10 +14,10 @@ pub mod move_action;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Board {
-    pub flower: bool,
-    pub spare: [BoardSpare; 3],
-    pub out: BoardOut,
-    pub tray: [Vec<Card>; 8],
+    flower: bool,
+    spare: [BoardSpare; 3],
+    out: BoardOut,
+    tray: [Vec<Card>; 8],
 }
 
 impl Display for Board {
@@ -275,6 +275,12 @@ impl Board {
                 }
             }
         }
+    }
+    pub fn flower(&self) -> bool {
+        self.flower
+    }
+    pub fn out(&self) -> BoardOut {
+        self.out
     }
     pub fn len(&self, slot: Slot) -> usize {
         match slot {
