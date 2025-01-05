@@ -303,6 +303,7 @@ impl Board {
         match location {
             Location::Spare(index) => {
                 if let BoardSpare::Card(c) = self.spare[index as usize] {
+                    self.spare[index as usize] = BoardSpare::Empty;
                     c
                 } else {
                     panic!("Slot collected or empty");
