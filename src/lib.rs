@@ -289,6 +289,9 @@ impl Board {
     pub fn out(&self) -> &BoardOut {
         &self.out
     }
+    pub fn is_spare_collected(&self, slot: u8) -> bool {
+        matches!(self.spare[slot as usize], BoardSpare::Collected)
+    }
     pub fn get(&self, slot: Slot) -> Box<dyn Iterator<Item = &Card> + '_> {
         match slot {
             Slot::Spare(index) => if let Some(BoardSpare::Card(c)) = self.spare.get(index as usize) {
